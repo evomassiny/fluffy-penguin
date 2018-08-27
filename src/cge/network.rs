@@ -8,7 +8,7 @@ use activation::TransferFunctionTrait;
 use cge::node::Allele::*;
 use cge::node::{Node, INPUT_NODE_DEPTH_VALUE, IOTA_INPUT_VALUE};
 use rand::{thread_rng, Rng};
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use std::io::Write;
 
 
@@ -24,7 +24,7 @@ pub struct Network<T> {
     // Neuron value processed by a `Transfer Function`.
     pub neuron_map: Vec<T>,
     // Neuron index lookup table: <genome[i].id, index in self.genome>
-    pub neuron_indices_map: HashMap<usize, usize>,
+    pub neuron_indices_map: FnvHashMap<usize, usize>,
     // The number of Output in this Network. It's a constant value as well.
     pub output_size: usize,
 }
@@ -67,7 +67,7 @@ impl Network<f32> {
         }
 
         let neuron_map: Vec<f32> = vec![0.0_f32; output_size];
-        let neuron_indices_map: HashMap<usize, usize> = Network::compute_neuron_indices(&genome);
+        let neuron_indices_map: FnvHashMap<usize, usize> = Network::compute_neuron_indices(&genome);
 
         Network {
             genome,
@@ -98,7 +98,7 @@ impl Network<f32> {
         let genome: Vec<Node<f32>> = Vec::new();
         let input_map: Vec<f32> = input_vec.clone();
         let neuron_map: Vec<f32> = vec![];
-        let neuron_indices_map: HashMap<usize, usize> = Network::compute_neuron_indices(&genome);
+        let neuron_indices_map: FnvHashMap<usize, usize> = Network::compute_neuron_indices(&genome);
 
         Network {
             genome,
@@ -123,7 +123,7 @@ impl Network<f32> {
         let genome: Vec<Node<f32>> = Vec::new();
         let input_map: Vec<f32> = input_vec.iter().map(|i| i.relu()).collect();
         let neuron_map: Vec<f32> = vec![];
-        let neuron_indices_map: HashMap<usize, usize> = Network::compute_neuron_indices(&genome);
+        let neuron_indices_map: FnvHashMap<usize, usize> = Network::compute_neuron_indices(&genome);
 
         Network {
             genome,
@@ -182,7 +182,7 @@ impl Network<f32> {
             ),
             Node::new(JumpRecurrent { source_id: 0 }, 11, 0.2, IOTA_INPUT_VALUE, 2),
         ];
-        let neuron_indices_map: HashMap<usize, usize> = Network::compute_neuron_indices(&genome);
+        let neuron_indices_map: FnvHashMap<usize, usize> = Network::compute_neuron_indices(&genome);
 
         Network {
             genome,
@@ -241,7 +241,7 @@ impl Network<f32> {
             ),
             Node::new(JumpRecurrent { source_id: 0 }, 12, 0.2, IOTA_INPUT_VALUE, 2),
         ];
-        let neuron_indices_map: HashMap<usize, usize> = Network::compute_neuron_indices(&genome);
+        let neuron_indices_map: FnvHashMap<usize, usize> = Network::compute_neuron_indices(&genome);
 
         Network {
             genome,
@@ -291,7 +291,7 @@ impl Network<f32> {
                 INPUT_NODE_DEPTH_VALUE,
             ),
         ];
-        let neuron_indices_map: HashMap<usize, usize> = Network::compute_neuron_indices(&genome);
+        let neuron_indices_map: FnvHashMap<usize, usize> = Network::compute_neuron_indices(&genome);
 
         Network {
             genome,
@@ -468,49 +468,40 @@ impl Network<f32> {
 
     /// Compute the indexes of the Neuron in the linear genome so we can find them easily during
     /// the evaluation process. This function is meant to be call only once at init time.
-    fn compute_neuron_indices(genome: &[Node<f32>]) -> HashMap<usize, usize> {
-        // The initial capacity of the HashMap is totally arbitrary.
-        let mut neuron_indices_hashmap: HashMap<usize, usize> =
-            HashMap::with_capacity(genome.len() / 2 as usize);
+    fn compute_neuron_indices(genome: &[Node<f32>]) -> FnvHashMap<usize, usize> {
+        let mut neuron_indices_btmap: FnvHashMap<usize, usize> = FnvHashMap::default();
         for i in 0..genome.len() {
             if let Neuron { id } = genome[i].allele {
-                neuron_indices_hashmap.insert(id, i);
+                neuron_indices_btmap.insert(id, i);
             }
         }
-        neuron_indices_hashmap.shrink_to_fit();
-        neuron_indices_hashmap
+        neuron_indices_btmap
     }
 
 
-    /// Compute the indices of each Neuron gin into a HashMap lookup table.
-    pub fn compute_neurons_gin_indices_map(genome: &[Node<f32>]) -> HashMap<usize, usize> {
-        // The initial capacity of the HashMap is totally arbitrary.
-        let mut neurons_gin_indices_hashmap: HashMap<usize, usize> =
-            HashMap::with_capacity(genome.len() / 2 as usize);
+    /// Compute the indices of each Neuron gin into a FnvHashMap lookup table.
+    pub fn compute_neurons_gin_indices_map(genome: &[Node<f32>]) -> FnvHashMap<usize, usize> {
+        let mut neurons_gin_indices_btmap: FnvHashMap<usize, usize> = FnvHashMap::default();
 
         for i in 0..genome.len() {
-            if let Neuron { id } = genome[i].allele {
-                neurons_gin_indices_hashmap.insert(genome[i].gin, i);
+            if let Neuron { .. } = genome[i].allele {
+                neurons_gin_indices_btmap.insert(genome[i].gin, i);
             }
         }
-        neurons_gin_indices_hashmap.shrink_to_fit();
-        neurons_gin_indices_hashmap
+        neurons_gin_indices_btmap
     }
 
 
-    /// Build a HashMap of reference to Neuron Node. HashMap <gin, &Node>.
-    fn build_gin_neuron_map<'a>(genome: &'a [Node<f32>]) -> HashMap<usize, &Node<f32>> {
-        // The initial capacity of the HashMap is totally arbitrary.
-        let mut neurons_gin_indices_hashmap: HashMap<usize, &Node<f32>> =
-            HashMap::with_capacity(genome.len() / 2 as usize);
+    /// Build a FnvHashMap of reference to Neuron Node. FnvHashMap <gin, &Node>.
+    fn build_gin_neuron_map<'a>(genome: &'a [Node<f32>]) -> FnvHashMap<usize, &Node<f32>> {
+        let mut neurons_gin_indices_btmap: FnvHashMap<usize, &Node<f32>> = FnvHashMap::default();
 
         for node in genome {
             if let Neuron { .. } = node.allele {
-                neurons_gin_indices_hashmap.insert(node.gin, node);
+                neurons_gin_indices_btmap.insert(node.gin, node);
             }
         }
-        neurons_gin_indices_hashmap.shrink_to_fit();
-        neurons_gin_indices_hashmap
+        neurons_gin_indices_btmap
     }
 
 
@@ -579,9 +570,9 @@ impl Network<f32> {
         // this map serves 2 purposes:
         // * it tracks the IDs of each neuron processed in this evaluation
         // * it allows a quick lookup for it
-        let mut neuron_id_to_value: HashMap<usize, f32> = HashMap::new();
+        let mut neuron_id_to_value: FnvHashMap<usize, f32> = FnvHashMap::default();
         // build a lookup table: Neuron ID to neuron index in self.genome
-        let mut neuron_id_to_idx: HashMap<usize, usize> = HashMap::new();
+        let mut neuron_id_to_idx: FnvHashMap<usize, usize> = FnvHashMap::default();
         for (i, node) in self.genome.iter().enumerate() {
             if let Neuron { id } = node.allele {
                 neuron_id_to_idx.insert(id, i);
@@ -673,7 +664,7 @@ impl Network<f32> {
                     // store it as an input to the rest ro the genome
                     neuron_input_stack.push(neuron_value * node.w);
                 },
-                _Nan => {},
+                NaN => {},
             }
         }
         // update the values of each neurons
@@ -850,7 +841,6 @@ impl Network<f32> {
         network_2: &Network<f32>,
         fitness_1: f32,
         fitness_2: f32,
-        debug: bool,
     ) -> Network<f32> {
         // 1° Build each inputs sub-network into a HashMap and use a Vector to store order
         // information.
@@ -861,32 +851,15 @@ impl Network<f32> {
         let mut offspring = network_1.clone();
 
         // Let's create sub-networks of each Neuron in each Network.
-        let (n1_order, n1_isn_hm) = Network::build_subnetworks_lookup_table(network_1);
-        let (n2_order, n2_isn_hm) = Network::build_subnetworks_lookup_table(network_2);
-
-        if debug {
-            println!("\nn1_order = {:?}", n1_order);
-            println!("n1_isn_hm =");
-            Network::_pp_subnetworks_lookup_table(&n1_order, &n1_isn_hm);
-
-
-            println!("\nn2_order = {:?}", n2_order);
-            println!("n2_isn_hm =");
-            Network::_pp_subnetworks_lookup_table(&n2_order, &n2_isn_hm);
-        }
+        let (n1_order, n1_isn_btm) = Network::build_subnetworks_lookup_table(network_1);
+        let (n2_order, n2_isn_btm) = Network::build_subnetworks_lookup_table(network_2);
 
         // At this point we are going to recombine each sub-network and store them into a loopup
         // table (HashMap).
-        let isn_merged_hm =
-            Network::merge_and_update_subnetworks(&n1_order, &n2_order, &n1_isn_hm, &n2_isn_hm);
+        let isn_merged_btm =
+            Network::merge_and_update_subnetworks(&n1_order, &n2_order, &n1_isn_btm, &n2_isn_btm);
 
-        if debug {
-            println!("isn_merged_hm ( 1 ):");
-            Network::_pp_subnetworks_lookup_table(&n1_order, &isn_merged_hm);
 
-            println!("isn_merged_hm ( 2 ):");
-            Network::_pp_subnetworks_lookup_table(&n2_order, &isn_merged_hm);
-        }
 
         // Now we need to recombine all those sub-networks into one linear genome.
         // To do so, we will start from the output Nodes and unravel their inputs.
@@ -905,27 +878,20 @@ impl Network<f32> {
             "Inconsistency between Network output Nodes."
         );
 
-        let n1_gin_neuron_map: HashMap<usize, &Node<f32>> =
+        let n1_gin_neuron_map: FnvHashMap<usize, &Node<f32>> =
             Network::build_gin_neuron_map(&network_1.genome);
-        let n2_gin_neuron_map: HashMap<usize, &Node<f32>> =
+        let n2_gin_neuron_map: FnvHashMap<usize, &Node<f32>> =
             Network::build_gin_neuron_map(&network_2.genome);
 
-        let mut gin_neuron_map: HashMap<usize, &Node<f32>> =
-            HashMap::with_capacity(n1_gin_neuron_map.len());
+        let mut gin_neuron_map: FnvHashMap<usize, &Node<f32>> = FnvHashMap::default();
         for (k, v) in n1_gin_neuron_map.iter().chain(n2_gin_neuron_map.iter()) {
             gin_neuron_map.insert(*k, v);
         }
 
-        if debug {
-            println!("n1_output_gin_vector = {:?}", n1_output_gin_vector);
-            println!("n2_output_gin_vector = {:?}", n2_output_gin_vector);
-            println!("n1_gin_neuron_map = {:?}", n1_gin_neuron_map.keys());
-            println!("n2_gin_neuron_map = {:?}", n2_gin_neuron_map.keys());
-        }
 
         // At last we can recombine them.
         offspring.genome =
-            Network::recombine_subnetworks(&n1_output_gin_vector, &gin_neuron_map, &isn_merged_hm);
+            Network::recombine_subnetworks(&n1_output_gin_vector, &gin_neuron_map, &isn_merged_btm);
 
         // Finally, we need to update each Node's weight in order to priorotize the fitest ones.
         offspring.update_weights(&network_1.genome, &network_2.genome, fitness_1, fitness_2);
@@ -938,7 +904,7 @@ impl Network<f32> {
     /// Build a sub-network of inputs in a lookup table (HashMap) and store the order in a Vector.
     pub fn build_subnetworks_lookup_table(
         network: &Network<f32>,
-    ) -> (Vec<usize>, HashMap<usize, Vec<&Node<f32>>>) {
+    ) -> (Vec<usize>, FnvHashMap<usize, Vec<&Node<f32>>>) {
         let neuron_order: Vec<usize> = network
             .genome
             .iter()
@@ -951,8 +917,7 @@ impl Network<f32> {
             }).collect();
 
         let genome_len: usize = network.genome.len();
-        let mut inputs_subnetwork_hm: HashMap<usize, Vec<&Node<f32>>> =
-            HashMap::with_capacity(neuron_order.len());
+        let mut inputs_subnetwork_btm: FnvHashMap<usize, Vec<&Node<f32>>> = FnvHashMap::default();
 
         for i in 0..genome_len {
             let node = &network.genome[i];
@@ -961,15 +926,15 @@ impl Network<f32> {
                 let slice: Vec<&Node<f32>> = network.genome[i..].iter().map(|n| n).collect();
                 let subnetwork = Network::build_ref_input_subnetwork(&slice);
 
-                inputs_subnetwork_hm.insert(node.gin, subnetwork);
+                inputs_subnetwork_btm.insert(node.gin, subnetwork);
             }
         }
 
-        (neuron_order, inputs_subnetwork_hm)
+        (neuron_order, inputs_subnetwork_btm)
     }
 
 
-    pub fn _pp_subnetworks_lookup_table(n_order: &[usize], hm: &HashMap<usize, Vec<&Node<f32>>>) {
+    pub fn _pp_subnetworks_lookup_table(n_order: &[usize], hm: &FnvHashMap<usize, Vec<&Node<f32>>>) {
         for i in n_order {
             let sub_net = hm.get(i).unwrap();
             println!("NGin ({:^3}) :", i);
@@ -982,10 +947,11 @@ impl Network<f32> {
     fn merge_and_update_subnetworks<'a>(
         n1_order: &[usize],
         n2_order: &[usize],
-        n1_subnet_hm: &HashMap<usize, Vec<&'a Node<f32>>>,
-        n2_subnet_hm: &HashMap<usize, Vec<&'a Node<f32>>>,
-    ) -> HashMap<usize, Vec<&'a Node<f32>>> {
-        let mut hm_merged: HashMap<usize, Vec<&Node<f32>>> = HashMap::new();
+        n1_subnet_btm: &FnvHashMap<usize, Vec<&'a Node<f32>>>,
+        n2_subnet_btm: &FnvHashMap<usize, Vec<&'a Node<f32>>>,
+    ) -> FnvHashMap<usize, Vec<&'a Node<f32>>> {
+
+        let mut btm_merged: FnvHashMap<usize, Vec<&Node<f32>>> = FnvHashMap::default();
 
         let mut common_neuron_gin: Vec<usize> = Vec::with_capacity(n1_order.len() + n2_order.len());
         common_neuron_gin.append(&mut n1_order.to_vec());
@@ -996,14 +962,14 @@ impl Network<f32> {
 
         // First we concentrate on the leaves of the trees.
         {
-            for (gin, inputs) in n1_subnet_hm {
+            for (gin, inputs) in n1_subnet_btm {
                 if !common_neuron_gin.contains(gin) {
-                    hm_merged.insert(*gin, inputs.clone());
+                    btm_merged.insert(*gin, inputs.clone());
                 }
             }
-            for (gin, inputs) in n2_subnet_hm {
+            for (gin, inputs) in n2_subnet_btm {
                 if !common_neuron_gin.contains(gin) {
-                    hm_merged.insert(*gin, inputs.clone());
+                    btm_merged.insert(*gin, inputs.clone());
                 }
             }
         }
@@ -1017,14 +983,14 @@ impl Network<f32> {
 
                 if common_neuron_gin.contains(&node_gin) {
                     let _default: Vec<&Node<f32>> = vec![];
-                    let sub_net_1 = n1_subnet_hm.get(&node_gin).unwrap_or(&_default);
+                    let sub_net_1 = n1_subnet_btm.get(&node_gin).unwrap_or(&_default);
 
                     let _default: Vec<&Node<f32>> = vec![];
-                    let sub_net_2 = n2_subnet_hm.get(&node_gin).unwrap_or(&_default);
+                    let sub_net_2 = n2_subnet_btm.get(&node_gin).unwrap_or(&_default);
 
                     let merged_sub_net = Network::merge_input_subnetworks(&sub_net_1, &sub_net_2);
 
-                    hm_merged.insert(node_gin, merged_sub_net);
+                    btm_merged.insert(node_gin, merged_sub_net);
                 }
             }
 
@@ -1034,21 +1000,21 @@ impl Network<f32> {
 
                 // We want to grab the left over Neurons and avoid to iterate on the ones we
                 // already process during the last loop.
-                if common_neuron_gin.contains(&node_gin) && !hm_merged.contains_key(&node_gin) {
+                if common_neuron_gin.contains(&node_gin) && !btm_merged.contains_key(&node_gin) {
                     let _default: Vec<&Node<f32>> = vec![];
-                    let sub_net_1 = n1_subnet_hm.get(&node_gin).unwrap_or(&_default);
+                    let sub_net_1 = n1_subnet_btm.get(&node_gin).unwrap_or(&_default);
 
                     let _default: Vec<&Node<f32>> = vec![];
-                    let sub_net_2 = n2_subnet_hm.get(&node_gin).unwrap_or(&_default);
+                    let sub_net_2 = n2_subnet_btm.get(&node_gin).unwrap_or(&_default);
 
                     let merged_sub_net = Network::merge_input_subnetworks(&sub_net_1, &sub_net_2);
 
-                    hm_merged.insert(node_gin, merged_sub_net);
+                    btm_merged.insert(node_gin, merged_sub_net);
                 }
             }
         }
 
-        hm_merged
+        btm_merged
     }
 
 
@@ -1119,8 +1085,53 @@ impl Network<f32> {
     /// Recombine the sub-networks into a linear genome.
     fn recombine_subnetworks<'a>(
         output_node_gin_vector: &[usize],
-        gin_neuron_map: &HashMap<usize, &'a Node<f32>>,
-        merged_sub_net_hm: &HashMap<usize, Vec<&'a Node<f32>>>,
+        gin_neuron_map: &FnvHashMap<usize, &'a Node<f32>>,
+        merged_sub_net_btm: &FnvHashMap<usize, Vec<&'a Node<f32>>>,
+    ) -> Vec<Node<f32>> {
+        let mut recombined_genome: Vec<Node<f32>> = Vec::new();
+
+        for gin in output_node_gin_vector {
+            // println!("Looking for gin {}", gin);
+            let _output_neuron_ref: &Node<f32> = gin_neuron_map.get(&gin).unwrap();
+            let mut output_neuron: Node<f32> = _output_neuron_ref.clone();
+
+            let _neurons_input_ref: Vec<&Node<f32>> = merged_sub_net_btm.get(&gin).unwrap().to_vec();
+            let mut neurons_inputs: Vec<Node<f32>> =
+                _neurons_input_ref.iter().map(|n| (*n).clone()).collect();
+
+            // We update the iota of each output Neuron while passing by...
+            output_neuron.iota = 1 - neurons_inputs.len() as i32;
+            recombined_genome.push(output_neuron);
+
+            for input_node in neurons_inputs {
+                // println!("\tInput_node {}", input_node.gin);
+                if let Neuron { .. } = input_node.allele {
+                    let mut input_neuron_node = input_node.clone();
+
+                    let mut recombined_sub_genome = Network::recombine_subnetworks(
+                        &[input_neuron_node.gin],
+                        gin_neuron_map,
+                        merged_sub_net_btm,
+                    );
+
+                    // input_neuron_node.iota = 1 - recombined_sub_genome.len() as i32;
+                    // recombined_genome.push(input_neuron_node);
+                    recombined_genome.append(&mut recombined_sub_genome);
+                } else {
+                    recombined_genome.push(input_node);
+                }
+            }
+        }
+
+        recombined_genome
+    }
+
+
+    /// Recombine the sub-networks into a linear genome.
+    fn _recombine_subnetworks_recursive<'a>(
+        output_node_gin_vector: &[usize],
+        gin_neuron_map: &FnvHashMap<usize, &'a Node<f32>>,
+        merged_sub_net_hm: &FnvHashMap<usize, Vec<&'a Node<f32>>>,
     ) -> Vec<Node<f32>> {
         let mut recombined_genome: Vec<Node<f32>> = Vec::new();
 
@@ -1133,7 +1144,7 @@ impl Network<f32> {
             let mut neurons_inputs: Vec<Node<f32>> =
                 _neurons_input_ref.iter().map(|n| (*n).clone()).collect();
 
-            // We update the iota of each Neuron while passing by...
+            // We update the iota of each output Neuron while passing by...
             output_neuron.iota = 1 - neurons_inputs.len() as i32;
             recombined_genome.push(output_neuron);
 
@@ -1141,14 +1152,13 @@ impl Network<f32> {
                 // println!("\tInput_node {}", input_node.gin);
                 if let Neuron { .. } = input_node.allele {
                     let mut input_neuron_node = input_node.clone();
-                    let mut recombined_sub_genome = Network::recombine_subnetworks(
+
+                    let mut recombined_sub_genome = Network::_recombine_subnetworks_recursive(
                         &[input_neuron_node.gin],
                         gin_neuron_map,
                         merged_sub_net_hm,
                     );
 
-                    input_neuron_node.iota = 1 - recombined_sub_genome.len() as i32;
-                    // recombined_genome.push(input_neuron_node);
                     recombined_genome.append(&mut recombined_sub_genome);
                 } else {
                     recombined_genome.push(input_node);
@@ -1169,10 +1179,8 @@ impl Network<f32> {
         fitness_1: f32,
         fitness_2: f32,
     ) {
-        let mut n1_gin_node_lookup_table: HashMap<usize, &Node<f32>> =
-            HashMap::with_capacity(genome_1.len());
-        let mut n2_gin_node_lookup_table: HashMap<usize, &Node<f32>> =
-            HashMap::with_capacity(genome_2.len());
+        let mut n1_gin_node_lookup_table: FnvHashMap<usize, &Node<f32>> = FnvHashMap::default();
+        let mut n2_gin_node_lookup_table: FnvHashMap<usize, &Node<f32>> = FnvHashMap::default();
 
         // Build up some lookup table to find each Nodes.
         for n in genome_1 {
@@ -1185,25 +1193,17 @@ impl Network<f32> {
         for mut node in &mut self.genome {
             let w1: f32 = match n1_gin_node_lookup_table.get(&node.gin) {
                 Some(n) => n.w,
-                None => 0.0,
+                None => n2_gin_node_lookup_table.get(&node.gin).unwrap().w,
             };
             let w2: f32 = match n2_gin_node_lookup_table.get(&node.gin) {
                 Some(n) => n.w,
-                None => 0.0,
+                None => n1_gin_node_lookup_table.get(&node.gin).unwrap().w,
             };
 
             if fitness_1 >= fitness_2 {
-                if w1 > 0.0 {
-                    node.w = w1;
-                } else {
-                    node.w = w2;
-                }
+                node.w = w1;
             } else {
-                if w1 > 0.0 {
-                    node.w = w1;
-                } else {
-                    node.w = w2;
-                }
+                node.w = w2;
             }
         }
     }

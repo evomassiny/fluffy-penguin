@@ -116,7 +116,11 @@ impl Population<f32> {
     pub fn stochastic_universal_sampling_selection(
         species: &[Specimen<f32>],
     ) -> Vec<Specimen<f32>> {
+
+        // TODO: Make this configurable ? //
+        // This determines how many individuals will take part in the mating pool.
         let lambda: usize = species.len();
+        // let lambda: usize = (species.len() as f32 * 1.5) as usize;
         // let lambda: usize = species.len() / 2_usize;
         // let lambda: usize = species.len() * 2_usize;
 
@@ -245,51 +249,18 @@ impl Population<f32> {
                 }
 
 
-                let mut offspring: Specimen<f32> = Specimen::crossover(father, mother, false);
+                let mut offspring: Specimen<f32> = Specimen::crossover(father, mother);
+
                 if offspring.ann.is_valid() {
+
                     offspring_vector.push(offspring);
+
                 } else {
-                    use cge::Network;
-                    println!("\n\n\n\nFather:");
-                    Network::pretty_print(&father.ann.genome);
-                    father.render("tmp/father.dot", "Father", false);
-                    father.save_to_file("tmp/father.bc");
-
-                    println!("Father's Father:");
-                    Network::pretty_print(&father.parents[0].ann.genome);
-                    father.parents[0].render("tmp/father-father.dot", "Father_Father", false);
-                    father.parents[0].save_to_file("tmp/father-father.bc");
-                    println!("Father's Mother:");
-                    Network::pretty_print(&father.parents[1].ann.genome);
-                    father.parents[1].render("tmp/father-mother.dot", "Father_Mother", false);
-                    father.parents[1].save_to_file("tmp/father-mother.bc");
-
-                    println!("\n\nMother:");
-                    Network::pretty_print(&mother.ann.genome);
-                    mother.render("tmp/mother.dot", "Mother", false);
-                    mother.save_to_file("tmp/mother.bc");
-
-                    println!("Mother's Father:");
-                    Network::pretty_print(&mother.parents[0].ann.genome);
-                    mother.parents[0].render("tmp/mother-father.dot", "Mother_Father", false);
-                    mother.parents[0].save_to_file("tmp/mother-father.bc");
-                    println!("Mother's Mother:");
-                    Network::pretty_print(&mother.parents[1].ann.genome);
-                    mother.parents[1].render("tmp/mother-mother.dot", "Mother_Mother", false);
-                    mother.parents[1].save_to_file("tmp/mother-mother.bc");
-
-                    println!("\n\nOffspring:");
-                    Network::pretty_print(&offspring.ann.genome);
-                    // offspring.ann.render_to_dot("tmp/offspring.dot", "Offspring", false);
-
-                    offspring.ann.is_valid();
-                    let mut offspring: Specimen<f32> = Specimen::crossover(father, mother, true);
-
-                    panic!(
-                        "father {} and mother {} failed to reproduce.",
-                        father.fitness * 10_000.0,
-                        mother.fitness * 10_000.0
-                    );
+                    // panic!(
+                    //     "father {} and mother {} failed to reproduce.",
+                    //     father.fitness,
+                    //     mother.fitness,
+                    // );
                     println!(
                         "father {} and mother {} failed to reproduce.",
                         father.fitness, mother.fitness

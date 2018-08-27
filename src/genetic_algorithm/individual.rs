@@ -2,7 +2,7 @@ use cge::{Allele, Network, Node};
 use genetic_algorithm::mutation::StructuralMutation;
 use rand::distributions::StandardNormal;
 use rand::{self, thread_rng, Rng};
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 
 pub const LEARNING_RATE_THRESHOLD: f32 = 0.0001;
 
@@ -103,7 +103,10 @@ impl Specimen<f32> {
             // Curtaining the weight and sigma values.
             // if sigma_p < -10.0 || w_p < -10.0 || sigma_p > 10.0 || w_p > 10.0 {
             if w_p < -10.0 || w_p > 10.0 {
-                // Do nothing.
+                // Do nothing. 
+                // if w_p > 10.0 { node.w = 10.0; }
+                // else { node.w = -10.0; }
+                // node.sigma = sigma_p;
             } else {
                 // Assign the new mutated learning rate value to the Node.
                 node.sigma = sigma_p;
@@ -338,22 +341,16 @@ impl Specimen<f32> {
 
 
     /// Returns the offspring of two Specimens.
-    pub fn crossover(father: &Specimen<f32>, mother: &Specimen<f32>, debug: bool) -> Specimen<f32> {
+    pub fn crossover(father: &Specimen<f32>, mother: &Specimen<f32>) -> Specimen<f32> {
         let mut specimen = father.clone();
 
-        let (father, mother) = Specimen::sort_specimens_genome(&father, &mother, false);
+        let (father, mother) = Specimen::sort_specimens_genome(&father, &mother);
         specimen.ann = Network::crossover(
             &father.ann,
             &mother.ann,
             father.fitness,
             mother.fitness,
-            debug,
         );
-
-        // specimen.parents = vec![
-        //     father.clone(),
-        //     mother.clone(),
-        // ];
 
         specimen.update();
 
@@ -368,7 +365,6 @@ impl Specimen<f32> {
     pub fn sort_specimens_genome(
         specimen_1: &Specimen<f32>,
         specimen_2: &Specimen<f32>,
-        debug: bool,
     ) -> (Specimen<f32>, Specimen<f32>) {
         use cge::Allele::Neuron;
 
@@ -405,20 +401,17 @@ impl Specimen<f32> {
         let ref_specimen;
         let mut other_specimen;
 
-        let ref_genome;
         let other_genome;
 
         let mut ref_gin_v: Vec<usize>;
         let other_gin_v: Vec<usize>;
 
-        // let ref_neuron_gin_map: HashMap<usize, usize>;
-        let other_neuron_gin_map: HashMap<usize, usize>;
+        let other_neuron_gin_map: FnvHashMap<usize, usize>;
 
         if n1_gin_vector.len() >= n2_gin_vector.len() {
             ref_specimen = specimen_1;
             other_specimen = specimen_2.clone();
 
-            ref_genome = genome_1;
             other_genome = genome_2;
 
             ref_gin_v = n1_gin_vector;
@@ -430,7 +423,6 @@ impl Specimen<f32> {
             ref_specimen = specimen_2;
             other_specimen = specimen_1.clone();
 
-            ref_genome = genome_2;
             other_genome = genome_1;
 
             ref_gin_v = n2_gin_vector;
@@ -448,9 +440,6 @@ impl Specimen<f32> {
 
 
         for ref_neuron_gin in ref_gin_v {
-            if debug {
-                println!("ref_neuron_gin = {}", ref_neuron_gin);
-            }
 
             let mut gin_already_sorted: Vec<usize> = genome_sorted
                 .iter()
@@ -482,21 +471,6 @@ impl Specimen<f32> {
                 }
             }
 
-            if debug {
-                println!("Slice :");
-                Network::pretty_print(&genome_sorted);
-            }
-        }
-
-        if debug {
-            println!("\n\n");
-            println!("  Ref Genome:");
-            Network::pretty_print(&ref_genome);
-            println!("Sorted Genome:");
-            Network::pretty_print(&genome_sorted);
-            println!("Other Genome:");
-            Network::pretty_print(&other_genome);
-            println!("\n\n");
         }
 
         other_specimen.ann.genome = genome_sorted;

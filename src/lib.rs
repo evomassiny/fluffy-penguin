@@ -10,6 +10,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate bincode;
+extern crate fnv;
 
 pub mod activation;
 pub mod cge;
@@ -98,9 +99,9 @@ mod network {
     #[test]
     /// This tests the evaluation of a network which contains
     /// A JF node right after the its source Neuron.
-    fn evaluation_jump_forward_after_Neuron() {
-        use cge::{Allele::*, Node, INPUT_NODE_DEPTH_VALUE, IOTA_INPUT_VALUE};
-        use std::collections::HashMap;
+    fn evaluation_jump_forward_after_neuron() {
+        use cge::{Allele::*, Node};
+        use fnv::FnvHashMap;
         let genome: Vec<Node<f32>> = vec![
             Node { allele: Neuron { id: 0 }, gin: 1, w: 0.6, sigma: 0.01, iota: -2, value: 0.0, depth: 0 },
             Node { allele: JumpRecurrent { source_id: 2 }, gin: 23, w: 0.0, sigma: 0.01, iota: 1, value: 0.0, depth: 1 },
@@ -120,7 +121,7 @@ mod network {
             genome: genome,
             input_map: vec![1., 1.],
             neuron_map: vec![0., 0., 0., 0.],
-            neuron_indices_map: HashMap::new(),
+            neuron_indices_map: FnvHashMap::default(),
             output_size: 1,
         };
         let output = net.evaluate().unwrap();

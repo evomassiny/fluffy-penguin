@@ -237,7 +237,7 @@ fn _test_crossover() {
 
     // Network::align(&sp1.ann, &sp2.ann);
 
-    let mut offspring: Specimen<f32> = Specimen::crossover(&sp1, &sp2, false);
+    let mut offspring: Specimen<f32> = Specimen::crossover(&sp1, &sp2);
     println!("\n>> Offspring:");
     Network::pretty_print(&offspring.ann.genome);
 
@@ -333,12 +333,15 @@ fn _test_population_crossover(pretty_print: bool, export: bool, print_weights: b
 
 
 fn _test_population_selection(pretty_print: bool, export: bool, print_weights: bool) {
+
     let population_size: usize = 32;
     let input_size: usize = 8;
     let output_size: usize = 9;
-    let mutation_probability: f32 = 0.1;
+    let mutation_probability: f32 = 0.5;
 
     let mutation_size: usize = 100;
+    let cycle_per_structure = 5;
+    let cycle_stop: usize = 1;
 
     // let mut population: Population<f32> =
     // Population::new(population_size, input_size, output_size, mutation_probability);
@@ -346,7 +349,7 @@ fn _test_population_selection(pretty_print: bool, export: bool, print_weights: b
 
 
     let mut loop_counter: usize = 0;
-    loop {
+    for _ in 0..cycle_stop {
         let mut file_to_remove: Vec<String> = Vec::with_capacity(population_size);
         let mut population: Population<f32> = Population::new(
             population_size,
@@ -378,24 +381,8 @@ fn _test_population_selection(pretty_print: bool, export: bool, print_weights: b
                     file_to_remove.push(file_name);
                 }
             }
-            // println!();
-            //
-            // let lowest_fitness: f32 = *population.species
-            //     .iter()
-            //     .map(|s| s.fitness)
-            //     .collect::<Vec<f32>>()
-            //     .iter()
-            //     .min_by( |x, y| x.partial_cmp(y).unwrap() )
-            //     .unwrap_or(&0.0);
-            //
-            // population.sort_species_by_fitness();
-            // let sus_selected = &population.species;
-            // for i in 0..sus_selected.len() {
-            //     // println!(" {:>4} : {:<4}", *&mut population.species[i].fitness as i32, sus_selected[i].fitness as i32);
-            //     println!(" {:>4} : {:<4}", "", sus_selected[i].fitness + lowest_fitness.abs());
-            // }
 
-            if _smi % 10 == 0 {
+            if _smi % cycle_per_structure == 0 {
                 // || true {
                 population.exploration();
             } else {
@@ -418,6 +405,7 @@ fn _test_population_selection(pretty_print: bool, export: bool, print_weights: b
             }
         }
     }
+
 }
 
 
@@ -437,7 +425,7 @@ fn _test_on_defective_specimens() {
     println!("Failed Parent:");
     Network::pretty_print(&father.ann.genome);
 
-    let father_bis = Specimen::crossover(&father.parents[0], &father.parents[1], true);
+    let father_bis = Specimen::crossover(&father.parents[0], &father.parents[1]);
     println!("Father BIS:");
     Network::pretty_print(&father_bis.ann.genome);
     father_bis.render("tmp/father_bis.dot", "father", false);
@@ -451,7 +439,7 @@ fn _test_on_defective_specimens() {
     // mother.parents[1].render("tmp/mother-mother.dot", "mother_mother", false);
 
 
-    let mut offspring = Specimen::crossover(&father, &mother, true);
+    let mut offspring = Specimen::crossover(&father, &mother);
     println!("Failed Offspring:");
     Network::pretty_print(&offspring.ann.genome);
     println!("Offspring is valid ? {}", offspring.ann.is_valid());
@@ -460,7 +448,7 @@ fn _test_on_defective_specimens() {
 
 fn _test_crossover3_on_defective_specimens() {
     let father: Specimen<f32> = Specimen::load_from_file("tmp/father.bc");
-    let mother: Specimen<f32> = Specimen::load_from_file("tmp/mother.bc");
+    // let mother: Specimen<f32> = Specimen::load_from_file("tmp/mother.bc");
 
     println!("Failed Father's Grand-Father:");
     Network::pretty_print(&father.parents[0].ann.genome);
@@ -475,7 +463,6 @@ fn _test_crossover3_on_defective_specimens() {
         &father.parents[1].ann,
         father.parents[0].fitness,
         father.parents[1].fitness,
-        true,
     );
     println!("Father BIS:");
     Network::pretty_print(&father_bis_network.genome);

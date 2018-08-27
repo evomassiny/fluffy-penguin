@@ -1,5 +1,4 @@
 extern crate fluffy_penguin;
-use fluffy_penguin::cge::Network;
 use fluffy_penguin::genetic_algorithm::individual::Specimen;
 use fluffy_penguin::genetic_algorithm::Population;
 
@@ -9,22 +8,21 @@ fn init_population(
     output_size: usize,
     mutation_probability: f32,
 ) -> Population<f32> {
-    let mut population: Population<f32> = Population::new(
+    Population::new(
         population_size,
         input_size,
         output_size,
         mutation_probability,
-    );
-    population
+    )
 }
 
 /// returns the indices of the `n` minimum values
-fn n_argmin(data: &Vec<f32>, n: usize) -> Vec<usize> {
+fn _n_argmin(data: &Vec<f32>, n: usize) -> Vec<usize> {
     assert!(n <= data.len());
     use std::f32;
     let mut indices: Vec<usize> = Vec::with_capacity(n);
     let mut last_min = f32::NEG_INFINITY;
-    for i in 0..n {
+    for _ in 0..n {
         let (idx, value) =
             data.iter()
                 .enumerate()
@@ -112,7 +110,7 @@ fn compute_specimen_score(specimen: &Specimen<f32>) -> f32 {
 ///
 
 
-fn basic() {
+fn _basic() {
     let population_size = 10;
     // build population
     let mut population = init_population(
@@ -136,7 +134,7 @@ fn basic() {
             .collect();
 
         // select the best half of the population
-        let mut bests: Vec<Specimen<f32>> = n_argmin(&scores, population_size / 2)
+        let bests: Vec<Specimen<f32>> = _n_argmin(&scores, population_size / 2)
             .iter()
             .map(|idx| population.species[*idx].clone())
             .collect();
@@ -146,7 +144,7 @@ fn basic() {
         let mut new_specimens: Vec<Specimen<f32>> = Vec::new();
         for i in 0..bests.len() {
             for j in (i + 1)..bests.len() {
-                new_specimens.push(Specimen::crossover(&bests[i], &bests[j], false));
+                new_specimens.push(Specimen::crossover(&bests[i], &bests[j]));
             }
         }
         // drop old set of individuals, and replace it by their offspring
@@ -154,7 +152,7 @@ fn basic() {
 
         /* MUTATION */
         // ann mutation
-        if generation_counter % cycle_per_structure == 0 && false {
+        if generation_counter % cycle_per_structure == 0 {
             for specimen in population.species.iter_mut() {
                 specimen.parametric_mutation();
             }
@@ -183,14 +181,16 @@ fn test_exploitation_correctness_on_basic_equation() {
         population_size, // size of population
         2,               // nb of input node in each ANN
         1,               // nb of output node in each ANN
-        0.10,             // mutation probability
+        0.05,            // mutation probability
     );
 
     /* EVOLUTION */
     let mut generation_counter: i64 = 0;
-    let cycle_per_structure = 50;
+    let cycle_per_structure = 100;
+    let cycle_stop: usize = 1000;
 
-    for _ in 0..1000 {
+
+    for _ in 0..cycle_stop {
         let mut file_to_remove: Vec<String> = Vec::with_capacity(population_size);
         generation_counter += 1;
 
@@ -261,6 +261,7 @@ fn test_exploitation_correctness_on_basic_equation() {
             }
         }
     }
+
 }
 
 
