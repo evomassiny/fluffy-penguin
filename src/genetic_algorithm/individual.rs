@@ -4,7 +4,7 @@ use rand::distributions::StandardNormal;
 use rand::{self, thread_rng, Rng};
 use std::collections::HashMap;
 
-pub const LEARNING_RATE_THRESHOLD: f32 = 0.01;
+pub const LEARNING_RATE_THRESHOLD: f32 = 0.0001;
 
 
 /// A Specimen regroups all the attributes needed by the genetic algorithm of an individual.
@@ -88,9 +88,9 @@ impl Specimen<f32> {
             // Since standard deviations very close to zero are unwanted (they will have on average
             // a negligible effect), the following boundary rule is used to force step
             // sizes to be no smaller than a pre-defined threshold.
-            // if sigma_p < LEARNING_RATE_THRESHOLD {
-            //     sigma_p = LEARNING_RATE_THRESHOLD;
-            // }
+            if sigma_p < LEARNING_RATE_THRESHOLD {
+                sigma_p = LEARNING_RATE_THRESHOLD;
+            }
 
             // Compute a new mutated connection weight.
             let mut w_p: f32 = node.w + sigma_p * nu_i;

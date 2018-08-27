@@ -183,7 +183,7 @@ fn test_exploitation_correctness_on_basic_equation() {
         population_size, // size of population
         2,               // nb of input node in each ANN
         1,               // nb of output node in each ANN
-        0.1,             // mutation probability
+        0.10,             // mutation probability
     );
 
     /* EVOLUTION */

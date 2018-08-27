@@ -28,11 +28,11 @@ impl Distribution<StructuralMutation> for Standard {
                 item: StructuralMutation::SubNetworkAddition,
             },
             Weighted {
-                weight: 1,
+                weight: 10,
                 item: StructuralMutation::JumperAddition,
             },
             Weighted {
-                weight: 1,
+                weight: 10,
                 item: StructuralMutation::ConnectionRemoval,
             },
         ];
