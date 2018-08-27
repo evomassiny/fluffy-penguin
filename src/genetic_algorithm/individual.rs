@@ -2,12 +2,13 @@ use cge::{Allele, Network, Node};
 use genetic_algorithm::mutation::StructuralMutation;
 use rand::distributions::StandardNormal;
 use rand::{self, thread_rng, Rng};
+use std::collections::HashMap;
 
 pub const LEARNING_RATE_THRESHOLD: f32 = 0.01;
 
 
 /// A Specimen regroups all the attributes needed by the genetic algorithm of an individual.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Specimen<T> {
     pub input_size: usize,
     pub output_size: usize,
@@ -15,6 +16,7 @@ pub struct Specimen<T> {
     pub ann: Network<T>,
     /// Symbolizes how well an individual solves a problem.
     pub fitness: T,
+    pub parents: Vec<Specimen<T>>,
 }
 
 impl Specimen<f32> {
@@ -24,6 +26,7 @@ impl Specimen<f32> {
             output_size,
             ann: Network::<f32>::new(input_size, output_size),
             fitness: 0.0,
+            parents: vec![],
         }
     }
 
@@ -35,6 +38,7 @@ impl Specimen<f32> {
             output_size: 2_usize,
             ann: Network::<f32>::build_from_example(),
             fitness: 0.0,
+            parents: vec![],
         }
     }
 
@@ -51,8 +55,10 @@ impl Specimen<f32> {
 
     /// Directly link to the ANN evaluation method.
     pub fn evaluate(&mut self) -> Vec<f32> {
-    // pub fn evaluate(&mut self) -> Vec<f32> {
-        self.ann.evaluate().expect("Fail to evaluate this Individual.")
+        // pub fn evaluate(&mut self) -> Vec<f32> {
+        self.ann
+            .evaluate()
+            .expect("Fail to evaluate this Individual.")
     }
 
     /// The exploitation phase researches the optimal weight of each Node in the current artificial
@@ -118,7 +124,12 @@ impl Specimen<f32> {
     ///
     /// This method returns the updated GIN (Global Innovation Number) to keep track of all the new
     /// structures added by a round of structural mutation.
-    pub fn structural_mutation(&mut self, pm: f32, gin: usize, new_neuron_id: usize) -> Result<(usize,usize), &str> {
+    pub fn structural_mutation(
+        &mut self,
+        pm: f32,
+        gin: usize,
+        new_neuron_id: usize,
+    ) -> Result<(usize, usize), &str> {
         // Copy the value of the global innovation number to return its updated value by the number
         // of innovation that occured during this mutation cycle.
         let mut updated_gin: usize = gin;
@@ -140,10 +151,8 @@ impl Specimen<f32> {
             match node.allele {
                 Allele::Neuron { id } => {
                     if Specimen::roll_the_mutation_wheel(pm) {
-
                         #[allow(unreachable_patterns)]
                         match rand::random::<StructuralMutation>() {
-
                             StructuralMutation::SubNetworkAddition => {
                                 // println!("~~~~~~~~~~~~  StructuralMutation::SubNetworkAddition  ~~~~~~~~~~~~");
                                 // Sub-network addition mutation.
@@ -172,7 +181,6 @@ impl Specimen<f32> {
                                 // mutated_genome.append(&mut subnetwork);
 
                                 while node_index + 1 < genome_len {
-
                                     node_index += 1;
                                     let node = self.ann.genome[node_index].clone();
                                     iota += node.iota;
@@ -186,7 +194,7 @@ impl Specimen<f32> {
                                 // Add this new sub-network at the end of the the current Neuron
                                 // input sub-network.
                                 // while node_index + 1 < genome_len {
-                                //     
+                                //
                                 //     if self.ann.genome[node_index + 1].allele == Allele::Neuron {
                                 //         break;
                                 //     } else {
@@ -209,7 +217,11 @@ impl Specimen<f32> {
 
                                 let source_id: usize = id;
                                 let depth: u16 = node.depth;
-                                match self.ann.gen_random_jumper_connection(source_id, updated_gin, depth) {
+                                match self.ann.gen_random_jumper_connection(
+                                    source_id,
+                                    updated_gin,
+                                    depth,
+                                ) {
                                     Some(jumper) => {
                                         // Increase the number of input the current new mutated Neuron has.
                                         node.iota -= 1;
@@ -248,14 +260,15 @@ impl Specimen<f32> {
                                 // Connection removal mutation
                                 // mutation_tracker.push("ConnectionRemoval".to_string());
 
-                                let sub_network_slice =
-                                    &self.ann.genome[node_index..genome_len];
+                                let sub_network_slice = &self.ann.genome[node_index..genome_len];
 
-                                let removable_gin_list: Vec<usize> = Network::find_removable_gin_list(&sub_network_slice);
+                                let removable_gin_list: Vec<usize> =
+                                    Network::find_removable_gin_list(&sub_network_slice);
 
                                 if removable_gin_list.len() > 1 {
                                     let removable_gin_index: usize = thread_rng().gen_range(0, removable_gin_list.len());
-                                    let removable_gin: usize = removable_gin_list[removable_gin_index];
+                                    let removable_gin: usize =
+                                        removable_gin_list[removable_gin_index];
 
                                     // println!("Node updated_gin = {}, removable_gin_list = {:?} x {}", node.gin, removable_gin_list, removable_gin);
 
@@ -271,7 +284,6 @@ impl Specimen<f32> {
                                             node_index += 1;
                                         }
                                     }
-
                                 } else {
                                     mutated_genome.push(node);
                                 }
@@ -281,7 +293,6 @@ impl Specimen<f32> {
                                 // Unknown structural mutation.
                                 println!("Unknown structural mutation behavior draw.");
                             }
-
                         }
                     } else {
                         // If we don't mutate this Neuron, we simply push it back to the genome,
@@ -327,11 +338,22 @@ impl Specimen<f32> {
 
 
     /// Returns the offspring of two Specimens.
-    pub fn crossover(specimen_1: &Specimen<f32>, specimen_2: &Specimen<f32>) -> Specimen<f32> {
-        let mut specimen = specimen_1.clone();
+    pub fn crossover(father: &Specimen<f32>, mother: &Specimen<f32>, debug: bool) -> Specimen<f32> {
+        let mut specimen = father.clone();
 
-        // specimen.ann = Network::crossover(&specimen_1.ann, &specimen_2.ann, specimen_1.fitness, specimen_2.fitness);
-        specimen.ann = Network::crossover_2(&specimen_1.ann, &specimen_2.ann, specimen_1.fitness, specimen_2.fitness);
+        let (father, mother) = Specimen::sort_specimens_genome(&father, &mother, false);
+        specimen.ann = Network::crossover_3(
+            &father.ann,
+            &mother.ann,
+            father.fitness,
+            mother.fitness,
+            debug,
+        );
+
+        // specimen.parents = vec![
+        //     father.clone(),
+        //     mother.clone(),
+        // ];
 
         specimen.update();
 
@@ -339,6 +361,148 @@ impl Specimen<f32> {
         specimen.fitness = 0.0;
 
         specimen
+    }
+
+
+    /// Sort the second genome according to the order of the first one.
+    pub fn sort_specimens_genome(
+        specimen_1: &Specimen<f32>,
+        specimen_2: &Specimen<f32>,
+        debug: bool,
+    ) -> (Specimen<f32>, Specimen<f32>) {
+        use cge::Allele::Neuron;
+
+        let genome_1 = &specimen_1.ann.genome;
+        let genome_2 = &specimen_2.ann.genome;
+
+        let genome_1_len: usize = genome_1.len();
+        let genome_2_len: usize = genome_2.len();
+
+        let mut genome_sorted: Vec<Node<f32>> = Vec::with_capacity(genome_1_len + genome_2_len);
+
+        // Let's build a vector containing the GIN of each the Neurons in each genome.
+        let n1_gin_vector: Vec<usize> = genome_1
+            .iter()
+            .filter_map(|n| {
+                if let Neuron { .. } = n.allele {
+                    Some(n.gin)
+                } else {
+                    None
+                }
+            }).collect();
+
+        let n2_gin_vector: Vec<usize> = genome_2
+            .iter()
+            .filter_map(|n| {
+                if let Neuron { .. } = n.allele {
+                    Some(n.gin)
+                } else {
+                    None
+                }
+            }).collect();
+
+
+        let ref_specimen;
+        let mut other_specimen;
+
+        let ref_genome;
+        let other_genome;
+
+        let mut ref_gin_v: Vec<usize>;
+        let other_gin_v: Vec<usize>;
+
+        // let ref_neuron_gin_map: HashMap<usize, usize>;
+        let other_neuron_gin_map: HashMap<usize, usize>;
+
+        if n1_gin_vector.len() >= n2_gin_vector.len() {
+            ref_specimen = specimen_1;
+            other_specimen = specimen_2.clone();
+
+            ref_genome = genome_1;
+            other_genome = genome_2;
+
+            ref_gin_v = n1_gin_vector;
+            other_gin_v = n2_gin_vector;
+
+            // ref_neuron_gin_map = Network::compute_neurons_gin_indices_map(&genome_1);
+            other_neuron_gin_map = Network::compute_neurons_gin_indices_map(&genome_2);
+        } else {
+            ref_specimen = specimen_2;
+            other_specimen = specimen_1.clone();
+
+            ref_genome = genome_2;
+            other_genome = genome_1;
+
+            ref_gin_v = n2_gin_vector;
+            other_gin_v = n1_gin_vector;
+
+            // ref_neuron_gin_map = Network::compute_neurons_gin_indices_map(&genome_2);
+            other_neuron_gin_map = Network::compute_neurons_gin_indices_map(&genome_1);
+        }
+
+        ref_gin_v.reverse();
+        // other_gin_v.reverse();
+
+
+        let mut slice: Vec<Node<f32>>;
+
+
+        for ref_neuron_gin in ref_gin_v {
+            if debug {
+                println!("ref_neuron_gin = {}", ref_neuron_gin);
+            }
+
+            let mut gin_already_sorted: Vec<usize> = genome_sorted
+                .iter()
+                .filter_map(|n| {
+                    if let Neuron { .. } = n.allele {
+                        Some(n.gin)
+                    } else {
+                        None
+                    }
+                }).collect();
+
+            if other_gin_v.contains(&ref_neuron_gin)
+                && !gin_already_sorted.contains(&ref_neuron_gin)
+            {
+                let neuron_idx: usize = *other_neuron_gin_map
+                    .get(&ref_neuron_gin)
+                    .expect("\n@sort_genome:\n\t>> Fail to lookup ref_neuron_gin.");
+
+                if gin_already_sorted.len() == 0 {
+                    slice = other_genome[neuron_idx..].to_vec();
+                    genome_sorted.append(&mut slice);
+                } else {
+                    let end_idx: usize = *other_neuron_gin_map.get(&gin_already_sorted[0])
+                        .expect("\n@sort_genome:\n\t>> Fail to lookup ref_neuron_gin in a non empty sorted genome.");
+
+                    slice = other_genome[neuron_idx..end_idx].to_vec();
+                    slice.append(&mut genome_sorted);
+                    genome_sorted = slice;
+                }
+            }
+
+            if debug {
+                println!("Slice :");
+                Network::pretty_print(&genome_sorted);
+            }
+        }
+
+        if debug {
+            println!("\n\n");
+            println!("  Ref Genome:");
+            Network::pretty_print(&ref_genome);
+            println!("Sorted Genome:");
+            Network::pretty_print(&genome_sorted);
+            println!("Other Genome:");
+            Network::pretty_print(&other_genome);
+            println!("\n\n");
+        }
+
+        other_specimen.ann.genome = genome_sorted;
+        assert!(other_specimen.ann.is_valid());
+
+        (ref_specimen.clone(), other_specimen)
     }
 
 
@@ -356,7 +520,50 @@ impl Specimen<f32> {
             .arg("-o")
             .arg(file_name_svg)
             .output()
-            .expect(&format!("Fail to render Specimen to dot/svg file: {}", file_name));
-            // .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
+            .expect(&format!(
+                "Fail to render Specimen to dot/svg file: {}",
+                file_name
+            ));
+        // .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
+    }
+
+
+    /// Dump a Specimen into a file using 'Bincode' serialization.
+    /// https://github.com/TyOverby/bincode
+    pub fn save_to_file(&self, file_name: &str) {
+        use bincode::serialize_into;
+        use std::fs::File;
+        use std::io::BufWriter;
+        use utils::create_parent_directory;
+
+
+        create_parent_directory(file_name).expect(&format!(
+            "Fail to create the directory tree of: '{:?}'",
+            file_name
+        ));
+        let stream = BufWriter::new(
+            File::create(file_name).expect(&format!("Fail to create file: '{:?}'", file_name)),
+        );
+
+
+        serialize_into(stream, &self).expect("Fail to serialize a Specimen into Bincode file.");
+    }
+
+
+    /// Load a Specimen from a Bincode file.
+    /// https://github.com/TyOverby/bincode
+    pub fn load_from_file(file_name: &str) -> Self {
+        use bincode::deserialize_from;
+        use std::fs::File;
+        use std::io::BufReader;
+
+        let stream = BufReader::new(
+            File::open(file_name).expect(&format!("Fail to open file: '{:?}'", file_name)),
+        );
+
+        let specimen: Specimen<f32> =
+            deserialize_from(stream).expect("Fail to deserialize a Specimen from Bincode file.");
+
+        specimen
     }
 }
