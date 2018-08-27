@@ -763,7 +763,6 @@ impl Network<f32> {
                 );
                 Network::pretty_print(input_vec);
                 panic!("@build_jf_slice:");
-                break;
             }
             i += 1;
         }
@@ -809,6 +808,39 @@ impl Network<f32> {
 
         inputs.dedup_by(|a, b| a.gin.eq(&b.gin));
         inputs
+    }
+
+
+    /// Find removable GIN from a Neuron.
+    pub fn find_removable_gin_list(genome: &[Node<f32>]) -> Vec<usize> {
+
+        let genome_len: usize = genome.len();
+        let mut removable_gin: Vec<usize> = Vec::with_capacity(genome_len);
+
+        let mut iota: i32 = genome[0].iota;
+        let mut i: usize = 1;
+
+
+        while i < genome_len && iota != 1 {
+            
+            let node: Node<f32> = genome[i].clone();
+
+            match node.allele {
+                Neuron { .. } => {
+                    // let mut gin_list: Vec<usize> = Network::find_removable_gin_list(&genome[i..]);
+                    // removable_gin.append(&mut gin_list);
+                    break;
+                },
+                Input  { .. } | JumpForward { .. } | JumpRecurrent { .. } => {
+                    removable_gin.push(node.gin);
+                    iota += 1;
+                },
+                _ => { break; }
+            }
+            i += 1;
+        }
+
+        removable_gin
     }
 
 

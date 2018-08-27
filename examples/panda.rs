@@ -288,10 +288,6 @@ fn _test_population_crossover(pretty_print: bool, export: bool, print_weights: b
             for (i, specimen) in population.species.iter().enumerate() {
                 println!("Specimen {}", i);
                 Network::pretty_print(&specimen.ann.genome);
-                println!(
-                    "Output = {:?}",
-                    Network::pseudo_evaluate_slice(&specimen.ann.genome)
-                );
             }
             println!(":After Structural Mutation ~~~~~~~~~~~~");
             println!("\n");
@@ -326,10 +322,6 @@ fn _test_population_crossover(pretty_print: bool, export: bool, print_weights: b
                     // export_visu(&specimen_mutated, file_name, graph_name);
                     offspring.render(file_name, graph_name, print_weights);
                 }
-                println!(
-                    "Output = {:?}",
-                    Network::pseudo_evaluate_slice(&offspring.ann.genome).unwrap()
-                );
             }
             println!("\t\\\\\\  Evolution {}  ///\n\n", smi + 1);
             println!();
@@ -477,13 +469,8 @@ fn _test_crossover3_on_defective_specimens() {
     println!("Failed Parent:");
     Network::pretty_print(&father.ann.genome);
 
-    println!(
-        "\n{:^120}",
-        "µµµµµµµµµµµµµµµµµµµµµµµµµµµµµµµµµµµµ\n"
-    );
-
     // let father_bis = Specimen::crossover(&father.parents[0], &father.parents[1], true);
-    let father_bis_network = Network::crossover_3(
+    let father_bis_network = Network::crossover(
         &father.parents[0].ann,
         &father.parents[1].ann,
         father.parents[0].fitness,

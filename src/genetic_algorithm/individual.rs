@@ -342,7 +342,7 @@ impl Specimen<f32> {
         let mut specimen = father.clone();
 
         let (father, mother) = Specimen::sort_specimens_genome(&father, &mother, false);
-        specimen.ann = Network::crossover_3(
+        specimen.ann = Network::crossover(
             &father.ann,
             &mother.ann,
             father.fitness,
