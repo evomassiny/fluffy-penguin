@@ -103,9 +103,9 @@ impl Node<f32> {
         }
     }
 
-    /// Returns a proper random weight in the space: [0.0, 1.0], with one decimal value.
+    /// Returns a proper random weight in the space: [-1.0, 1.0], with four decimal value.
     pub fn random_weight() -> f32 {
-        thread_rng().gen_range(0_f32, 1_f32)
+        thread_rng().gen_range(-1000_i32, 1001_i32) as f32 / 1000.0
     }
 
     /// Returns either or not self.allele is a Neuron
