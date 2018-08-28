@@ -922,8 +922,9 @@ impl Network<f32> {
             if let Neuron { .. } = node.allele {
                 let mut direct_inputs: Vec<&Node<f32>> = Vec::new();
                 let input_len = (1 - node.iota) as usize;
-                for gene_idx in i..(i + input_len) {
-                    direct_inputs.push(&network.genome[gene_idx]);
+                // stores the input_len next nodes
+                for idx in 0..input_len {
+                    direct_inputs.push(&network.genome[i + 1 + idx]);
                 }
                 inputs_subnetwork_btm.insert(node.gin, direct_inputs);
             }
