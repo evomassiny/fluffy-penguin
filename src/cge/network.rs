@@ -916,17 +916,16 @@ impl Network<f32> {
                 }
             }).collect();
 
-        let genome_len: usize = network.genome.len();
         let mut inputs_subnetwork_btm: FnvHashMap<usize, Vec<&Node<f32>>> = FnvHashMap::default();
 
-        for i in 0..genome_len {
-            let node = &network.genome[i];
-
+        for (i, node) in network.genome.iter().enumerate() {
             if let Neuron { .. } = node.allele {
-                let slice: Vec<&Node<f32>> = network.genome[i..].iter().map(|n| n).collect();
-                let subnetwork = Network::build_ref_input_subnetwork(&slice);
-
-                inputs_subnetwork_btm.insert(node.gin, subnetwork);
+                let mut direct_inputs: Vec<&Node<f32>> = Vec::new();
+                let input_len = (1 - node.iota) as usize;
+                for gene_idx in i..(i + input_len) {
+                    direct_inputs.push(&network.genome[gene_idx]);
+                }
+                inputs_subnetwork_btm.insert(node.gin, direct_inputs);
             }
         }
 
